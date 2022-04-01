@@ -57,7 +57,7 @@ if args.distributed:
 
 
 train_dataset = torchvision.datasets.CIFAR100(
-                root='../../DATA/', 
+                root='./DATA/', 
                 transform=transforms.Compose(
                     [
                     transforms.RandomResizedCrop(224),
@@ -68,7 +68,7 @@ train_dataset = torchvision.datasets.CIFAR100(
                 train=True)
 
 val_dataset = torchvision.datasets.CIFAR100(
-                root='../../DATA/', 
+                root='./DATA/', 
                 transform=transforms.Compose(
                     [
                     transforms.Resize(256),
