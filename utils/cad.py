@@ -46,7 +46,7 @@ def deconv_orth_dist(kernel, stride = 2):
     
     nloss = torch.sum((output[M == 1] - 1)**2)
     tloss = torch.sum((output3[M == 0] - np.pi/2)**2)
-    return nloss + 0.1*tloss
+    return nloss, tloss
 
 
     

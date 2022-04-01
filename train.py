@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
-import sodso
-import ocnn
-import srip
-import cad
+from utils import sodso
+from utils import ocnn
+from utils import srip
+from utils import cad
 
 
 
@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='resnet18')
 parser.add_argument('--data', type=str, default='cifar100')
 parser.add_argument('--gpu', type=str, default='0')
-parser.add_argument('--reg', type=str, default=None)
+parser.add_argument('--reg', type=str, default='CAD2')
 parser.add_argument('--r', type=float, default=0.1)
 parser.add_argument('--r_so', type=float, default=0.1)
 parser.add_argument('--r_dso', type=float, default=0.1)
@@ -227,25 +227,8 @@ def adjust_learning_rate(optimizer, epoch, lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-
-target_weights = [
-            model.layer2[0].downsample[0].weight, 
-            model.layer3[0].downsample[0].weight,
-            model.layer4[0].downsample[0].weight,
-            model.layer1[0].conv1.weight,
-            model.layer1[1].conv1.weight,
-            model.layer2[0].conv1.weight,
-            model.layer2[1].conv1.weight,
-            model.layer3[0].conv1.weight,
-            model.layer3[1].conv1.weight,
-            model.layer4[0].conv1.weight,
-            model.layer4[1].conv1.weight,
-        ]
-
 down_weights = []
 conv_weights = []
-total_weights = [down_weights] + [w[0] for w in conv_weights]
-
 
 layer_list = [layer for layer in dir(model) if layer.startswith('layer')]
 for layer in layer_list:
@@ -253,7 +236,7 @@ for layer in layer_list:
     for i in range(len(layer_get)):
         try:
             conv = getattr(layer_get[i], 'conv1')
-            conv_weights.append((conv.weight, conv.stride))
+            conv_weights.append((conv.weight, conv.stride[0]))
         except:
             pass
         try:
@@ -261,6 +244,8 @@ for layer in layer_list:
             down_weights.append(down[0].weight)
         except:
             pass 
+
+total_weights = [down_weights] + [w[0] for w in conv_weights]
 
 
 for epoch in range(args.epochs):
