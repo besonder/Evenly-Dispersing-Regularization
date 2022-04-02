@@ -37,14 +37,14 @@ parser.add_argument('--wdecay', action='store_true')
 args = parser.parse_args()
 
 now = datetime.now()
-logfile = '_'.join(['model-'+args.model, 'data-'+args.data, 'reg-'+args.reg])
+logfile = '_'.join([args.model, args.data, args.reg])
 logfile += now.strftime("_%Y-%m-%d_%H-%M-%S") 
 logfile += '.txt'
 
 f = open(os.path.join('./log/', logfile), 'w')
 
 for k in args.__dict__:
-    f.write(k + ': ' + str(getattr(args, k)))
+    f.write(k + ': ' + str(getattr(args, k)) +'\n')
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -353,7 +353,7 @@ for epoch in range(args.epochs):
         top5.update(acc5[0], images.size(0))
         
     print(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}')
-    f.write(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}')
+    f.write(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}\n')
 
 f.close()
 
