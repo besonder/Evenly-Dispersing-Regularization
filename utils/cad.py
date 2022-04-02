@@ -20,11 +20,11 @@ def cad_function(W, theta):
     return nloss, tloss
 
 
-def orth_dist(mat, stride=None):
-    mat = mat.reshape( (mat.shape[0], -1) )
-    if mat.shape[0] < mat.shape[1]:
-        mat = mat.permute(1,0)
-    return torch.norm( torch.t(mat)@mat - torch.eye(mat.shape[1]).cuda())
+# def orth_dist(mat, stride=None):
+#     mat = mat.reshape( (mat.shape[0], -1) )
+#     if mat.shape[0] < mat.shape[1]:
+#         mat = mat.permute(1,0)
+#     return torch.norm( torch.t(mat)@mat - torch.eye(mat.shape[1]).cuda())
     
 def deconv_orth_dist(kernel, stride = 2):
     [o_c, i_c, w, h] = kernel.shape

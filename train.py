@@ -1,5 +1,6 @@
 import os
 import argparse
+from datetime import datetime
 import torchvision
 from torch.utils.data import DataLoader
 import torch
@@ -17,7 +18,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='resnet18')
 parser.add_argument('--data', type=str, default='cifar100')
 parser.add_argument('--gpu', type=str, default='0')
-parser.add_argument('--reg', type=str, default='CAD2')
+
+parser.add_argument('--reg', type=str, default='base')
 parser.add_argument('--r', type=float, default=0.1)
 parser.add_argument('--r_so', type=float, default=0.1)
 parser.add_argument('--r_dso', type=float, default=0.1)
@@ -25,7 +27,6 @@ parser.add_argument('--r_srip', type=float, default=1e-6)
 parser.add_argument('--r_ocnn', type=float, default=0.1)
 parser.add_argument('--r_ncad', type=float, default=0.1)
 parser.add_argument('--r_tcad', type=float, default=0.01)
-parser.add_argument('--r_cad2', type=float, default=0.01)
 parser.add_argument('--theta', type=float, default=1.41)
 
 parser.add_argument('--lr', type=float, default=0.1)
@@ -34,6 +35,16 @@ parser.add_argument('--bsize', type=int, default=256)
 parser.add_argument('--wdecay', action='store_true')
 
 args = parser.parse_args()
+
+now = datetime.now()
+logfile = '_'.join(['model-'+args.model, 'data-'+args.data, 'reg-'+args.reg])
+logfile += now.strftime("_%Y-%m-%d_%H-%M-%S") 
+logfile += '.txt'
+
+f = open(os.path.join('./log/', logfile), 'w')
+
+for k in args.__dict__:
+    f.write(k + ': ' + str(getattr(args, k)))
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -50,11 +61,6 @@ if args.distributed:
     torch.distributed.init_process_group(backend="nccl", init_method="env://")
 
 # do_seed(args.seed)
-
-
-if args.distributed:
-    torch.cuda.set_device(args.local_rank)
-    torch.distributed.init_process_group(backend='nccl', init_method='env://')
 
 
 if args.model == 'resnet18':
@@ -76,6 +82,7 @@ if args.data == 'cifar100':
                     root='./DATA/', 
                     transform=transforms.Compose(
                         [
+                        transforms.RandomResizedCrop(224),
                         transforms.RandomHorizontalFlip(),
                         transforms.ToTensor(),
                         transforms.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762))
@@ -86,6 +93,8 @@ if args.data == 'cifar100':
                     root='./DATA/', 
                     transform=transforms.Compose(
                         [
+                        transforms.Resize(256),
+                        transforms.CenterCrop(224),
                         transforms.ToTensor(),
                         transforms.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762))
                         ]),
@@ -98,6 +107,7 @@ elif args.data == 'cifar10':
                     root='./DATA/', 
                     transform=transforms.Compose(
                         [
+                        transforms.RandomResizedCrop(224),
                         transforms.RandomHorizontalFlip(),
                         transforms.ToTensor(),
                         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
@@ -108,6 +118,8 @@ elif args.data == 'cifar10':
                     root='./DATA/', 
                     transform=transforms.Compose(
                         [
+                        transforms.Resize(256),
+                        transforms.CenterCrop(224),
                         transforms.ToTensor(),
                         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
                         ]),
@@ -123,7 +135,7 @@ elif args.data == 'imagenet':
                         transforms.ToTensor(),
                         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
                         ]),
-                    train=True)
+                    )
 
     val_dataset = torchvision.datasets.ImageFolder(
                     root='./DATA/', 
@@ -134,7 +146,7 @@ elif args.data == 'imagenet':
                         transforms.ToTensor(),
                         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
                         ]),
-                    train=False)    
+                    )    
 
 model.cuda() 
 
@@ -168,7 +180,7 @@ criterion = nn.CrossEntropyLoss().cuda()
 
 regularizer = args.reg
 
-if (regularizer is None) or args.wdecay:
+if regularizer == 'base' or args.wdecay:
     optimizer = torch.optim.SGD(model.parameters(), 
                                 lr=args.lr,
                                 momentum=0.9,
@@ -245,7 +257,7 @@ for layer in layer_list:
         except:
             pass 
 
-total_weights = [down_weights] + [w[0] for w in conv_weights]
+total_weights = down_weights + [w[0] for w in conv_weights]
 
 
 for epoch in range(args.epochs):
@@ -298,16 +310,17 @@ for epoch in range(args.epochs):
             loss += args.r_ncad*Nloss + args.r_tcad*Tloss 
 
         elif regularizer == 'CAD2':
-            dloss = 0
             nloss = 0
             tloss = 0
             for w in down_weights:
-                dloss += cad.orth_dist(w)
+                nl, tl = cad.CAD(w, args.theta)
+                nloss += nl
+                tloss += tl
             for w, s in conv_weights:
                 nl, tl = cad.deconv_orth_dist(w, stride=s)       
                 nloss += nl
                 tloss += tl
-            loss += args.r_cad2*(dloss + nloss + tloss)
+            loss += args.r_ncad*nloss + args.r_tcad*tloss
 
 
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -340,5 +353,9 @@ for epoch in range(args.epochs):
         top5.update(acc5[0], images.size(0))
         
     print(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}')
+    f.write(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}')
+
+f.close()
+
 
 
