@@ -1,17 +1,13 @@
 import os
 import argparse
 from datetime import datetime
-import torchvision
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
-from utils import sodso
-from utils import ocnn
-from utils import srip
-from utils import cad
-
+from utils import reg_losses, model_datasets
+from utils.utils import AverageMeter, adjust_learning_rate, accuracy, dc_weights
 
 
 parser = argparse.ArgumentParser()
@@ -30,9 +26,11 @@ parser.add_argument('--r_tcad', type=float, default=0.01)
 parser.add_argument('--theta', type=float, default=1.41)
 
 parser.add_argument('--lr', type=float, default=0.1)
-parser.add_argument('--epochs', type=int, default=100)
-parser.add_argument('--bsize', type=int, default=256)
-parser.add_argument('--wdecay', action='store_true')
+parser.add_argument('--epochs', type=int, default=200)
+parser.add_argument('--bsize', type=int, default=128)
+parser.add_argument('--wdecay', type=bool, default=True)
+parser.add_argument('--warm', type=int, default=1)
+
 
 args = parser.parse_args()
 
@@ -62,91 +60,7 @@ if args.distributed:
 
 # do_seed(args.seed)
 
-
-if args.model == 'resnet18':
-    model = torchvision.models.resnet18()
-elif args.model == 'resnet34':
-    model = torchvision.models.resnet34()
-elif args.model == 'resnet50':
-    model = torchvision.models.resnet50()
-elif args.model == 'resnet101':
-    model = torchvision.models.resnet101()
-elif args.model == 'resnet152':
-    model = torchvision.models.resnet152()
-
-
-if args.data == 'cifar100':
-    model.fc = torch.nn.Linear(in_features=512, out_features=100, bias=True)
-
-    train_dataset = torchvision.datasets.CIFAR100(
-                    root='./DATA/', 
-                    transform=transforms.Compose(
-                        [
-                        transforms.RandomResizedCrop(224),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762))
-                        ]),
-                    train=True)
-
-    val_dataset = torchvision.datasets.CIFAR100(
-                    root='./DATA/', 
-                    transform=transforms.Compose(
-                        [
-                        transforms.Resize(256),
-                        transforms.CenterCrop(224),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762))
-                        ]),
-                    train=False)
-
-elif args.data == 'cifar10':
-    model.fc = torch.nn.Linear(in_features=512, out_features=10, bias=True)
-
-    train_dataset = torchvision.datasets.CIFAR10(
-                    root='./DATA/', 
-                    transform=transforms.Compose(
-                        [
-                        transforms.RandomResizedCrop(224),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-                        ]),
-                    train=True)
-
-    val_dataset = torchvision.datasets.CIFAR10(
-                    root='./DATA/', 
-                    transform=transforms.Compose(
-                        [
-                        transforms.Resize(256),
-                        transforms.CenterCrop(224),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
-                        ]),
-                    train=False)  
-
-elif args.data == 'imagenet':
-    train_dataset = torchvision.datasets.ImageFolder(
-                    root='./DATA/', 
-                    transform=transforms.Compose(
-                        [
-                        transforms.RandomResizedCrop(224),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-                        ]),
-                    )
-
-    val_dataset = torchvision.datasets.ImageFolder(
-                    root='./DATA/', 
-                    transform=transforms.Compose(
-                        [
-                        transforms.Resize(256),
-                        transforms.CenterCrop(224),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-                        ]),
-                    )    
+model, train_dataset, val_dataset = model_datasets.model_data(args)
 
 model.cuda() 
 
@@ -180,7 +94,13 @@ criterion = nn.CrossEntropyLoss().cuda()
 
 regularizer = args.reg
 
-if regularizer == 'base' or args.wdecay:
+if regularizer == 'base':
+    optimizer = torch.optim.SGD(model.parameters(), 
+                                lr=args.lr,
+                                momentum=0.9,
+                                weight_decay=5e-4
+                                )
+elif args.wdecay:
     optimizer = torch.optim.SGD(model.parameters(), 
                                 lr=args.lr,
                                 momentum=0.9,
@@ -191,81 +111,21 @@ else:
                                 lr=args.lr,
                                 momentum=0.9,
                                 ) 
+MILESTONES = [60, 120, 160]
 
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self, name, fmt=':f'):
-        self.name = name
-        self.fmt = fmt
-        self.reset()
+train_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=MILESTONES, gamma=0.2)
 
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-    def __str__(self):
-        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
-        return fmtstr.format(**self.__dict__)
-
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].contiguous().view(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(100.0 / batch_size))
-        return res
-    
-    
-def adjust_learning_rate(optimizer, epoch, lr):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 30))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-down_weights = []
-conv_weights = []
-
-layer_list = [layer for layer in dir(model) if layer.startswith('layer')]
-for layer in layer_list:
-    layer_get = getattr(model, layer)
-    for i in range(len(layer_get)):
-        try:
-            conv = getattr(layer_get[i], 'conv1')
-            conv_weights.append((conv.weight, conv.stride[0]))
-        except:
-            pass
-        try:
-            down = getattr(layer_get[i], 'downsample')
-            down_weights.append(down[0].weight)
-        except:
-            pass 
-
-total_weights = down_weights + [w[0] for w in conv_weights]
+down_weights, conv_weights, total_weights = dc_weights(model)
 
 
 for epoch in range(args.epochs):
-    adjust_learning_rate(optimizer, epoch, args.lr)
+    if epoch > args.warm:
+        train_scheduler.step()
+    # adjust_learning_rate(optimizer, epoch, args.lr)
     
-    losses = AverageMeter('Loss', ':.4e')
-    top1 = AverageMeter('Acc@1', ':6.2f')
-    top5 = AverageMeter('Acc@5', ':6.2f')
+    losses_t = AverageMeter('Loss', ':.4e')
+    top1_t = AverageMeter('Acc@1', ':6.2f')
+    top5_t = AverageMeter('Acc@5', ':6.2f')
     
     model.train()
     for i, (images, target) in enumerate(train_loader):
@@ -275,59 +135,13 @@ for epoch in range(args.epochs):
 
         loss = criterion(output, target) 
 
-        if regularizer == 'OCNN':
-            dloss = 0
-            closs = 0
-            for w in down_weights:
-                dloss += ocnn.orth_dist(w)
-            for w, s in conv_weights:
-                closs += ocnn.deconv_orth_dist(w, stride=s)       
-            loss += args.r_ocnn*(dloss + closs)
-
-        elif regularizer == 'SRIP':
-            oloss = srip.l2_reg_ortho(model)
-            loss += args.r_srip*oloss
-
-        elif regularizer == 'SO':
-            sloss = 0
-            for i in range(len(total_weights)):
-                sloss += sodso.SO(total_weights[i])
-            loss += args.r_so*sloss
-
-        elif regularizer == 'DSO':
-            sloss = 0
-            for i in range(len(total_weights)):
-                sloss += sodso.DSO(total_weights[i])
-            loss += args.r_dso*sloss        
-
-        elif regularizer == 'CAD':
-            Nloss = 0
-            Tloss = 0
-            for i in range(len(total_weights)):
-                nloss, tloss = cad.CAD(total_weights[i], args.theta)
-                Nloss += nloss
-                Tloss += tloss
-            loss += args.r_ncad*Nloss + args.r_tcad*Tloss 
-
-        elif regularizer == 'CAD2':
-            nloss = 0
-            tloss = 0
-            for w in down_weights:
-                nl, tl = cad.CAD(w, args.theta)
-                nloss += nl
-                tloss += tl
-            for w, s in conv_weights:
-                nl, tl = cad.deconv_orth_dist(w, stride=s)       
-                nloss += nl
-                tloss += tl
-            loss += args.r_ncad*nloss + args.r_tcad*tloss
-
+        loss += reg_losses.reg_loss(args, down_weights, conv_weights, total_weights, model)
 
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
         
-        losses.update(loss.item(), images.size(0))
-        top1.update(acc1[0], images.size(0))
-        top5.update(acc5[0], images.size(0))
+        losses_t.update(loss.item(), images.size(0))
+        top1_t.update(acc1[0], images.size(0))
+        top5_t.update(acc5[0], images.size(0))
         
         optimizer.zero_grad()
         loss.backward()
@@ -351,8 +165,10 @@ for epoch in range(args.epochs):
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
         top5.update(acc5[0], images.size(0))
-        
+    
+    # print(f'epoch: {epoch}, train loss: {losses_t.avg:.3f}, acc1: {top1_t.avg:.3f}, acc5: {top5_t.avg:.3f}')
     print(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}')
+    # f.write(f'epoch: {epoch}, train loss: {losses_t.avg:.3f}, acc1: {top1_t.avg:.3f}, acc5: {top5_t.avg:.3f}\n')
     f.write(f'epoch: {epoch}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}\n')
 
 f.close()

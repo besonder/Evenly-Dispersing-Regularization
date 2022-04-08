@@ -20,6 +20,26 @@ def cad_function(W, theta):
     return nloss, tloss
 
 
+
+def AD1(weight, theta):
+    m = weight.shape[0]
+    W = weight.view(m, -1)
+    return cad_function(W, theta)
+
+def ad_function(W, theta):
+    m = W.shape[0]
+    WWT = W @ torch.t(W)
+    norm = torch.diagonal(WWT, 0)
+    N = torch.sqrt(norm[:, None] @ norm[None, :]).detach() + 1e-8
+    if theta == np.pi/2:
+        M = 1 - torch.eye(m, dtype=float).cuda()
+    else:
+        M = (torch.abs(WWT/N) >= np.cos(theta))*(1 - torch.eye(m, dtype=float).cuda())
+
+    nloss = torch.sum((1 - norm)**2)
+    tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
+    return nloss, tloss
+
 # def orth_dist(mat, stride=None):
 #     mat = mat.reshape( (mat.shape[0], -1) )
 #     if mat.shape[0] < mat.shape[1]:
