@@ -20,39 +20,37 @@ def cad_function(W, theta):
     return nloss, tloss
 
 
-
-def AD1(weight, theta):
+def ADK(weight, theta):
     m = weight.shape[0]
     W = weight.view(m, -1)
     return cad_function(W, theta)
+
 
 def ad_function(W, theta):
     m = W.shape[0]
     WWT = W @ torch.t(W)
     norm = torch.diagonal(WWT, 0)
     N = torch.sqrt(norm[:, None] @ norm[None, :]).detach() + 1e-8
-    if theta == np.pi/2:
+    if theta == 1.5708:
         M = 1 - torch.eye(m, dtype=float).cuda()
+        tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
     else:
-        M = (torch.abs(WWT/N) >= np.cos(theta))*(1 - torch.eye(m, dtype=float).cuda())
-
+        Z = (1 - torch.eye(m, dtype=float)).type(torch.bool)
+        M1 = (WWT/N > np.cos(theta))*Z
+        M2 = (WWT/N < -np.cos(theta))*Z
+        tloss = torch.sum(((torch.arccos(WWT[M1]) - theta))**2) + \
+            torch.sum(((torch.arccos(WWT[M2]) - 3.1416 + theta))**2)
+    
     nloss = torch.sum((1 - norm)**2)
-    tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
     return nloss, tloss
 
-# def orth_dist(mat, stride=None):
-#     mat = mat.reshape( (mat.shape[0], -1) )
-#     if mat.shape[0] < mat.shape[1]:
-#         mat = mat.permute(1,0)
-#     return torch.norm( torch.t(mat)@mat - torch.eye(mat.shape[1]).cuda())
-    
-def deconv_orth_dist(kernel, stride = 2):
+
+def ADC(kernel, theta, stride):
     [o_c, i_c, w, h] = kernel.shape
     padding = int(np.floor((w - 1)/stride)*stride)
     output = torch.conv2d(kernel, kernel, stride=stride, padding=padding)
     ct = int(np.floor(output.shape[-1]/2))
     norm = torch.sqrt(torch.diagonal(output[:, :, ct, ct], 0)).detach() 
-
 
     output2 = output / (norm[:, None] @ norm[None, :])[:, :, None, None]
 
@@ -65,7 +63,14 @@ def deconv_orth_dist(kernel, stride = 2):
     M[:, : ,ct, ct] = torch.eye(o_c).cuda()
     
     nloss = torch.sum((output[M == 1] - 1)**2)
-    tloss = torch.sum((output3[M == 0] - np.pi/2)**2)
+
+    if theta == 1.5708:
+        tloss = torch.sum((output3[M == 0] - 1.5708)**2)
+    else:
+        M1 = (output3 < theta)*(M == 0)
+        M2 = (output3 > 3.1416 - theta)*(M == 0)
+        tloss = torch.sum((output3[M1] - theta)**2) + \
+            torch.sum((output3[M2] - 3.1416 + theta)**2)
     return nloss, tloss
 
 

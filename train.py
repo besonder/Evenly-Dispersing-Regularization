@@ -16,14 +16,10 @@ parser.add_argument('--data', type=str, default='cifar100')
 parser.add_argument('--gpu', type=str, default='0')
 
 parser.add_argument('--reg', type=str, default='base')
-parser.add_argument('--r', type=float, default=0.1)
-parser.add_argument('--r_so', type=float, default=0.1)
-parser.add_argument('--r_dso', type=float, default=0.1)
-parser.add_argument('--r_srip', type=float, default=1e-6)
-parser.add_argument('--r_ocnn', type=float, default=0.1)
-parser.add_argument('--r_ncad', type=float, default=0.1)
-parser.add_argument('--r_tcad', type=float, default=0.01)
-parser.add_argument('--theta', type=float, default=1.41)
+parser.add_argument('--r', type=float, default=0)
+parser.add_argument('--rtn', type=float, default=1e-1)
+
+parser.add_argument('--theta', type=float, default=1.5708)
 
 parser.add_argument('--lr', type=float, default=0.1)
 parser.add_argument('--epochs', type=int, default=200)
@@ -121,7 +117,8 @@ down_weights, conv_weights, total_weights = dc_weights(model)
 for epoch in range(args.epochs):
     if epoch > args.warm:
         train_scheduler.step()
-    # adjust_learning_rate(optimizer, epoch, args.lr)
+
+    adjust_learning_rate(optimizer, epoch, args)
     
     losses_t = AverageMeter('Loss', ':.4e')
     top1_t = AverageMeter('Acc@1', ':6.2f')

@@ -1,6 +1,5 @@
 import torch
 
-
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self, name, fmt=':f'):
@@ -64,9 +63,107 @@ def dc_weights(model):
     return down_weights, conv_weights, total_weights
 
 
-def adjust_learning_rate(optimizer, epoch, lr):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 30))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+def adjust_learning_rate(optimizer, epoch, args):
+    lr_MS = [60, 120, 160]
+    lr = [1e-1, 2*1e-2, 4*1e-3, 8*1e-4]
+    i = 0
+    j = 0
+    if args.reg == 'base':
+        while epoch >= lr_MS[i]:
+            i += 1
+            if i == len(lr_MS):
+                break
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr[i]
 
+    elif args.reg == 'SO':
+        reg_MS = [20, 50, 70, 120]
+        r = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        wr = [1e-8, 1e-4, 1e-4, 1e-4, 1e-4]
+        while epoch >= lr_MS[i]:
+            i += 1
+            if i == len(lr_MS):
+                break
+        while epoch >= reg_MS[j]:
+            j += 1
+            if j == len(reg_MS):
+                break
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr[i]
+            param_group['weight_decay'] = wr[j]
+        args.r = r[j]
+
+    elif args.reg == 'DSO':
+        reg_MS = [20, 50, 70, 120]
+        r = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        wr = [1e-8, 5*1e-4, 5*1e-4, 5*1e-4, 5*1e-4]
+        while epoch >= lr_MS[i]:
+            i += 1
+            if i == len(lr_MS):
+                break
+        while epoch >= reg_MS[j]:
+            j += 1
+            if j == len(reg_MS):
+                break
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr[i]
+            param_group['weight_decay'] = wr[j]
+        args.r = r[j]
+
+    elif args.reg == 'MC':
+        reg_MS = [20, 50, 70, 120]
+        r = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        wr = [1e-8, 1e-8, 1e-8, 1e-8, 1e-8]
+        while epoch >= lr_MS[i]:
+            i += 1
+            if i == len(lr_MS):
+                break
+        while epoch >= reg_MS[j]:
+            j += 1
+            if j == len(reg_MS):
+                break
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr[i]
+            param_group['weight_decay'] = wr[j]
+        args.r = r[j]
+
+    elif args.reg == 'SRIP':
+        reg_MS = [20, 50, 70, 120]
+        r = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        wr = [1e-8, 1e-8, 1e-8, 1e-8, 1e-8]
+        while epoch >= lr_MS[i]:
+            i += 1
+            if i == len(lr_MS):
+                break
+        while epoch >= reg_MS[j]:
+            j += 1
+            if j == len(reg_MS):
+                break
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr[i]
+            param_group['weight_decay'] = wr[j]
+        args.r = r[j]
+
+    elif args.reg == 'OCNN':
+        reg_MS = [20, 50, 70, 120]
+        r = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        wr = [1e-8, 1e-8, 1e-8, 1e-8, 1e-8]
+        while epoch >= lr_MS[i]:
+            i += 1
+            if i == len(lr_MS):
+                break
+        while epoch >= reg_MS[j]:
+            j += 1
+            if j == len(reg_MS):
+                break
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr[i]
+            param_group['weight_decay'] = wr[j]
+        args.r = r[j]
+
+
+    elif args.reg == 'ADK':
+        pass
+
+    elif args.reg == 'ADC':
+        pass
