@@ -17,9 +17,6 @@ def reg_loss(args, down_weights, conv_weights, total_weights, model):
             sloss += sodso.DSO(total_weights[i])
         rloss = args.r*sloss        
 
-    elif args.reg == 'MC':
-        pass
-
     elif args.reg == 'SRIP':
         oloss = srip.l2_reg_ortho(model)
         rloss = args.r*oloss

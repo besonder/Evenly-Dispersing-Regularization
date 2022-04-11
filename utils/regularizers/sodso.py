@@ -14,4 +14,4 @@ def DSO(weight):
     n = W.shape[1]
     loss = torch.sum((W @ torch.t(W) - torch.eye(m, dtype=float).cuda())**2) + \
         torch.sum((torch.t(W) @ W - torch.eye(n, dtype=float).cuda())**2) 
-    return loss * 1/2
+    return loss
