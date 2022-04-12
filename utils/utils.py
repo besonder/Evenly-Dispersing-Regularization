@@ -58,33 +58,25 @@ def milestones(args):
 
     elif args.reg == 'SRIP':
         args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1e-2, 1e-3, 1e-4, 1e-6, 0]
+        args.__dict__['rr'] = [1e-3, 1e-4, 1e-5, 1e-6, 0]
         args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 5e-4]
 
     elif args.reg == 'OCNN':
-        # args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        # args.__dict__['rr'] = [1e-1, 1e-2, 1e-4, 1e-6, 0]
-        # args.__dict__['rr'] = [1e-1, 1e-2, 1e-4, 1e-6, 0]
-        # args.__dict__['wr'] = [0, 0, 0, 1e-6, 1e-4]
-        # args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 1e-6]
-        # args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 1e-4]
-        # args.__dict__['rr'] = [0.1]*5
-        # args.__dict__['wr'] = [1e-4]*5
-
-        args.__dict__['reg_MS'] = [60, 120, 160]
-        args.__dict__['rr'] = [1e-1, 0, 0, 0]
-        args.__dict__['wr'] = [1e-8, 5e-4, 5e-4, 5e-4]
-
+        args.__dict__['reg_MS'] = [20, 50, 70, 120]
+        args.__dict__['rr'] = [0.1]*5
+        # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        args.__dict__['wr'] = [5*1e-4]*5
 
     elif args.reg == 'ADK':
         args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1e-1, 1e-2, 1e-4, 1e-6, 0]
-        args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 1e-4]
+        args.__dict__['rr'] = [1]*5
+        # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+        args.__dict__['wr'] = [5*1e-4]*5
 
     elif args.reg == 'ADC':
         args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1e-1, 1e-2, 1e-4, 1e-6, 0]
-        args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 1e-4]
+        args.__dict__['rr'] = [1]*5
+        args.__dict__['wr'] = [5*1e-4]*5
 
 
 def adjust_learning_rate(optimizer, epoch, args):
