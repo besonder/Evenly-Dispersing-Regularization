@@ -10,7 +10,8 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
 from utils import reg_losses, model_datasets
-from utils.utils import AverageMeter, adjust_learning_rate, accuracy, milestones, reg_weights
+from utils.utils import AverageMeter, adjust_learning_rate, accuracy, reg_weights
+from utils.milestone import milestones
 
 
 parser = argparse.ArgumentParser()
