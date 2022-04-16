@@ -10,7 +10,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
 from utils import reg_losses, model_datasets
-from utils.utils import AverageMeter, adjust_learning_rate, accuracy, dc_weights, milestones
+from utils.utils import AverageMeter, adjust_learning_rate, accuracy, milestones, reg_weights
 
 
 parser = argparse.ArgumentParser()
@@ -18,9 +18,10 @@ parser.add_argument('--model', type=str, default='resnet18')
 parser.add_argument('--data', type=str, default='cifar100')
 parser.add_argument('--gpu', type=str, default='0')
 
-parser.add_argument('--reg', type=str, default='base')
+parser.add_argument('--reg', type=str, default='ADC')
 # parser.add_argument('--r', type=float, default=0)
 parser.add_argument('--rtn', type=float, default=1e-1)
+parser.add_argument('--fc', type=bool, default=True)
 
 parser.add_argument('--theta', type=float, default=1.5708)
 
@@ -37,8 +38,8 @@ args = parser.parse_args()
 for i, arg in enumerate(sys.argv[1:]):
     if "--local_rank" in arg:
         args.__setattr__("local_rank", int(arg[-1]))
-    elif "--" in arg:
-        args.__setattr__(arg[2:], str(sys.argv[1:][i+1]))
+    # elif "--" in arg:
+    #     args.__setattr__(arg[2:], str(sys.argv[1:][i+1]))
 
 milestones(args)
 
@@ -113,7 +114,8 @@ optimizer = torch.optim.SGD(model.parameters(),
                             weight_decay=args.wr[0]
                             )
 
-down_weights, conv_weights, total_weights = dc_weights(model)
+
+kern_weights, conv_weights = reg_weights(model, args.fc)
 
 time_t = AverageMeter('Time', ':6.2f')
 
@@ -135,7 +137,7 @@ for epoch in range(args.epochs):
         loss = criterion(output, target) 
 
         if args.reg != 'base':
-            loss += reg_losses.reg_loss(args, down_weights, conv_weights, total_weights, model)
+            loss += reg_losses.reg_loss(args, kern_weights, conv_weights, model)
 
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
         

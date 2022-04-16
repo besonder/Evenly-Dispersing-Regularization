@@ -2,6 +2,8 @@ import torch
 
 
 def SO(weight):
+    if len(weight) == 2:
+        weight = weight[0]
     m = weight.shape[0]
     W = weight.view(m, -1)
     loss = torch.sum((W @ torch.t(W) - torch.eye(m, dtype=float).cuda())**2)
@@ -9,6 +11,8 @@ def SO(weight):
 
 
 def DSO(weight):
+    if len(weight) == 2:
+        weight = weight[0]
     m = weight.shape[0]
     W = weight.view(m, -1)
     n = W.shape[1]

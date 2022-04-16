@@ -42,41 +42,53 @@ def accuracy(output, target, topk=(1,)):
 
 
 def milestones(args):
-    args.__dict__['lr_MS'] = [60, 120, 160]
-    args.__dict__['lr'] = [1e-1, 2*1e-2, 4*1e-3, 8*1e-4]
-    args.__dict__['wr'] = [5e-4]
+    if args.data == 'cifar100':
+        if args.model == 'resnet18':
+            args.__dict__['lr_MS'] = [60, 120, 160]
+            args.__dict__['lr'] = [1e-1, 2*1e-2, 4*1e-3, 8*1e-4]
+            args.__dict__['wr'] = [5e-4]
 
-    if args.reg == 'SO':
-        args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
-        args.__dict__['wr'] = [1e-8, 1e-4, 1e-4, 1e-4, 1e-4]
+            if args.reg == 'SO':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+                args.__dict__['wr'] = [1e-8, 1e-4, 1e-4, 1e-4, 1e-4]
 
-    elif args.reg == 'DSO':
-        args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
-        args.__dict__['wr'] = [1e-8, 5*1e-4, 5*1e-4, 5*1e-4, 5*1e-4]   
+            elif args.reg == 'DSO':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+                args.__dict__['wr'] = [1e-8, 5*1e-4, 5*1e-4, 5*1e-4, 5*1e-4]   
 
-    elif args.reg == 'SRIP':
-        args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1e-3, 1e-4, 1e-5, 1e-6, 0]
-        args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 5e-4]
+            elif args.reg == 'SRIP':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                args.__dict__['rr'] = [1e-3, 1e-4, 1e-5, 1e-6, 0]
+                args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 5e-4]
 
-    elif args.reg == 'OCNN':
-        args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [0.1]*5
-        # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
-        args.__dict__['wr'] = [5*1e-4]*5
+            elif args.reg == 'OCNN':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                args.__dict__['rr'] = [0.1]*5
+                # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 1e-8]
+                args.__dict__['wr'] = [1e-4]*5
+                # args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 5e-4]
 
-    elif args.reg == 'ADK':
-        args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1]*5
-        # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
-        args.__dict__['wr'] = [5*1e-4]*5
+            elif args.reg == 'ADK':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                args.__dict__['rr'] = [1]*5
+                # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 1e-8]
+                # args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 0]
+                args.__dict__['wr'] = [5*1e-4]*5
+                # args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 5e-4]
 
-    elif args.reg == 'ADC':
-        args.__dict__['reg_MS'] = [20, 50, 70, 120]
-        args.__dict__['rr'] = [1]*5
-        args.__dict__['wr'] = [5*1e-4]*5
+            elif args.reg == 'ADC':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                # args.__dict__['rr'] = [0.1]*5
+                args.__dict__['rr'] = [1e-1, 1e-3, 1e-4, 1e-6, 1e-8]
+                # args.__dict__['wr'] = [5*1e-4]*5
+                args.__dict__['wr'] = [1e-8, 1e-8, 1e-6, 1e-4, 5e-4]
+
+            elif args.reg == 'PH0' or args.reg == 'MST':
+                args.__dict__['reg_MS'] = [20, 50, 70, 120]
+                args.__dict__['rr'] = [0.1]*5
+                args.__dict__['wr'] = [5*1e-4]*5            
 
 
 def adjust_learning_rate(optimizer, epoch, args):
@@ -104,24 +116,24 @@ def adjust_learning_rate(optimizer, epoch, args):
         args.r = args.rr[j]
 
 
-def dc_weights(model):
-    down_weights = []
-    conv_weights = []
 
-    layer_list = [layer for layer in dir(model) if layer.startswith('layer')]
-    for layer in layer_list:
-        layer_get = getattr(model, layer)
-        for i in range(len(layer_get)):
-            try:
-                conv = getattr(layer_get[i], 'conv1')
-                conv_weights.append((conv.weight, conv.stride[0]))
-            except:
-                pass
-            try:
-                down = getattr(layer_get[i], 'downsample')
-                down_weights.append(down[0].weight)
-            except:
-                pass 
-    total_weights = down_weights + [w[0] for w in conv_weights]
-    return down_weights, conv_weights, total_weights
+def reg_weights(model, fc=True):
+    first_conv = True
+    kern_weights = []
+    conv_weights = []
+    for m in model.modules():
+        if isinstance(m, torch.nn.Conv2d):
+            if m.kernel_size[0] == 1:
+                kern_weights.append(m.weight)
+            else:
+                if first_conv:
+                    kern_weights.append(m.weight)
+                    first_conv = False
+                else:
+                    conv_weights.append((m.weight, m.stride[0]))
+        elif fc and isinstance(m, torch.nn.Linear):
+            kern_weights.append(m.weight)
+    return kern_weights, conv_weights
+
+
 

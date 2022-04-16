@@ -3,34 +3,47 @@ from torch.nn import functional as F
 import numpy as np
 
 
-def CAD(weight, theta):
+# def CAD(weight, theta):
+#     m = weight.shape[0]
+#     W = torch.cat((weight.view(m, -1), (-1)*weight.view(m, -1)), 0)
+#     return cad_function(W, theta)
+
+# def cad_function(W, theta):
+#     m = W.shape[0]
+#     WWT = W @ torch.t(W)
+#     norm = torch.diagonal(WWT, 0) 
+#     N = torch.sqrt(norm[:, None] @ norm[None, :]).detach()
+#     M = (WWT / N > np.cos(theta))*(WWT / N > 0)*(1 - torch.eye(m, dtype=float).cuda())
+
+#     tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
+#     nloss = torch.sum((1 - norm)**2)
+#     return nloss, tloss
+
+
+def ADK_fc(weight, theta):
+    if len(weight) == 2:
+        weight = weight[0]
     m = weight.shape[0]
-    W = torch.cat((weight.view(m, -1), (-1)*weight.view(m, -1)), 0)
-    return cad_function(W, theta)
+    W = weight.view(m, -1)    
+    n1, t1 = ad_function(W, theta)
+    n2, t2 = ad_function(torch.t(W), theta)
 
-def cad_function(W, theta):
-    m = W.shape[0]
-    WWT = W @ torch.t(W)
-    norm = torch.diagonal(WWT, 0) 
-    N = torch.sqrt(norm[:, None] @ norm[None, :]).detach()
-    M = (WWT / N > np.cos(theta))*(WWT / N > 0)*(1 - torch.eye(m, dtype=float).cuda())
-
-    tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
-    nloss = torch.sum((1 - norm)**2)
-    return nloss, tloss
+    return  n1+n2, t1+t2
 
 
 def ADK(weight, theta):
+    if len(weight) == 2:
+        weight = weight[0]
     m = weight.shape[0]
     W = weight.view(m, -1)
-    return cad_function(W, theta)
+    return ad_function(W, theta)
 
 
 def ad_function(W, theta):
     m = W.shape[0]
     WWT = W @ torch.t(W)
-    norm = torch.diagonal(WWT, 0)
-    N = torch.sqrt(norm[:, None] @ norm[None, :]).detach() + 1e-8
+    norm2 = torch.diagonal(WWT, 0)
+    N = torch.sqrt(norm2[:, None] @ norm2[None, :]).detach() + 1e-8
     if theta == 1.5708:
         M = 1 - torch.eye(m, dtype=float).cuda()
         tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
@@ -41,7 +54,7 @@ def ad_function(W, theta):
         tloss = torch.sum(((torch.arccos(WWT[M1]) - theta))**2) + \
             torch.sum(((torch.arccos(WWT[M2]) - 3.1416 + theta))**2)
     
-    nloss = torch.sum((1 - norm)**2)
+    nloss = torch.sum((1 - norm2)**2)
     return nloss, tloss
 
 
