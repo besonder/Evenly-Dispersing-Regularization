@@ -36,10 +36,11 @@ def reg_loss(args, kern_weights, conv_weights, model):
     elif args.reg == 'ADK':
         Nloss = 0
         Tloss = 0
-        for i in range(len(kern_weights)):
-            nloss, tloss = ad.ADK_fc(kern_weights[i], args.theta)
-            Nloss += nloss
-            Tloss += tloss
+        if not args.onlyconv:
+            for i in range(len(kern_weights)):
+                nloss, tloss = ad.ADK_fc(kern_weights[i], args.theta)
+                Nloss += nloss
+                Tloss += tloss
         for i in range(len(conv_weights)):
             nloss, tloss = ad.ADK(conv_weights[i], args.theta)
             Nloss += nloss
@@ -49,19 +50,14 @@ def reg_loss(args, kern_weights, conv_weights, model):
     elif args.reg == 'ADC':
         Nloss = 0
         Tloss = 0
-        for i in range(len(kern_weights)):
-            nloss, tloss = ad.ADK_fc(kern_weights[i], args.theta)
-            Nloss += nloss
-            Tloss += tloss
+        if not args.onlyconv:
+            for i in range(len(kern_weights)):
+                nloss, tloss = ad.ADK_fc(kern_weights[i], args.theta)
+                Nloss += nloss
+                Tloss += tloss
 
         for i, (w, s) in enumerate(conv_weights):
             nloss, tloss = ad.ADC(w, args.theta, stride=s)  
-
-            # m = w.shape[0]
-            # A = w.view(m, -1)     
-            # E = torch.mean(torch.sqrt(torch.sum(A**2, dim=1)))
-            # print(i, w.shape, E.item(), nloss.item(), tloss.item())
-
             Nloss += nloss
             Tloss += tloss
         rloss = args.r*Nloss + args.r*args.rtn*Tloss

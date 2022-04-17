@@ -22,7 +22,8 @@ parser.add_argument('--gpu', type=str, default='0')
 parser.add_argument('--reg', type=str, default='ADC')
 # parser.add_argument('--r', type=float, default=0)
 parser.add_argument('--rtn', type=float, default=1e-1)
-parser.add_argument('--fc', type=bool, default=True)
+parser.add_argument('--fc', type=bool, default=False)
+parser.add_argument('--onlyconv', type=bool, default=True)
 
 parser.add_argument('--theta', type=float, default=1.5708)
 
