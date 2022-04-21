@@ -1,4 +1,6 @@
 import torch
+import random
+import numpy as np
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -67,8 +69,9 @@ def adjust_learning_rate(optimizer, epoch, args):
 
 
 
-def reg_weights(model, fc=True):
+def reg_weights(model):
     first_conv = True
+    fc_weights = []
     kern_weights = []
     conv_weights = []
     for m in model.modules():
@@ -81,9 +84,21 @@ def reg_weights(model, fc=True):
                     first_conv = False
                 else:
                     conv_weights.append((m.weight, m.stride[0]))
-        elif fc and isinstance(m, torch.nn.Linear):
-            kern_weights.append(m.weight)
-    return kern_weights, conv_weights
+
+        elif isinstance(m, torch.nn.Linear):
+            fc_weights.append(m.weight)
+    return fc_weights, kern_weights, conv_weights
 
 
+def do_seed(seed_num, cudnn_ok=True):
+    random.seed(seed_num)
+    np.random.seed(seed_num)
+    torch.manual_seed(seed_num)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed_num)
+        torch.cuda.manual_seed_all(seed_num)  # if use multi-GPU
+    # It could be slow
+    if cudnn_ok:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 

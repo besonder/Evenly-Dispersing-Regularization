@@ -69,7 +69,7 @@ def model_data(args):
                             transforms.ToTensor(),
                             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))
                             ]),
-                        train=False)  
+                        train=False)        
 
     elif args.data == 'imagenet':
         if args.model == 'resnet18':

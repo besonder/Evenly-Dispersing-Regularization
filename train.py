@@ -7,10 +7,10 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
-import torchvision.transforms as transforms
+# import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
-from utils import reg_losses, model_datasets
-from utils.utils import AverageMeter, adjust_learning_rate, accuracy, reg_weights
+from utils import datasets, reg_losses
+from utils.utils import AverageMeter, adjust_learning_rate, accuracy, reg_weights, do_seed
 from utils.milestone import milestones
 
 
@@ -18,14 +18,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='resnet18')
 parser.add_argument('--data', type=str, default='cifar100')
 parser.add_argument('--gpu', type=str, default='0')
+parser.add_argument('--log', type=str, default='./log/performance/')
+parser.add_argument('--seed', type=int, default=2022)
+parser.add_argument('--optim', type=str, default='sgd')
 
-parser.add_argument('--reg', type=str, default='ADC')
-# parser.add_argument('--r', type=float, default=0)
+parser.add_argument('--reg', type=str, default='base')
 parser.add_argument('--rtn', type=float, default=1e-1)
-parser.add_argument('--fc', type=bool, default=False)
-parser.add_argument('--onlyconv', type=bool, default=True)
 
 parser.add_argument('--theta', type=float, default=1.5708)
+parser.add_argument('--double', type=bool, default=False)
+
+parser.add_argument('--fc', type=bool, default=False)
+parser.add_argument('--kern', type=bool, default=False)
+parser.add_argument('--conv', type=bool, default=True)
+# parser.add_argument('--onlyconv', type=bool, default=True)
 
 # parser.add_argument('--lr', type=float, default=0.1)
 parser.add_argument('--epochs', type=int, default=200)
@@ -62,9 +68,9 @@ if args.distributed:
     torch.cuda.set_device(args.local_rank)
     torch.distributed.init_process_group(backend="nccl", init_method="env://")
 
-# do_seed(args.seed)
+do_seed(args.seed)
 
-model, train_dataset, val_dataset = model_datasets.model_data(args)
+model, train_dataset, val_dataset = datasets.model_data(args)
 
 model.cuda() 
 
@@ -82,7 +88,7 @@ if not args.distributed or args.local_rank == 0:
     logfile += now.strftime("_%Y-%m-%d_%H-%M-%S") 
     logfile += '.txt'
 
-    f = open(os.path.join('./log/', logfile), 'w')
+    f = open(os.path.join(args.log, logfile), 'w')
 
     for k in args.__dict__:
         print(k + ': ' + str(getattr(args, k)))
@@ -110,14 +116,22 @@ criterion = nn.CrossEntropyLoss().cuda()
 
 regularizer = args.reg
 
-optimizer = torch.optim.SGD(model.parameters(), 
-                            lr=args.lr[0],
-                            momentum=0.9,
-                            weight_decay=args.wr[0]
-                            )
+if args.optim == 'sgd':
+    optimizer = torch.optim.SGD(
+        model.parameters(), 
+        lr=args.lr[0],
+        momentum=0.9,
+        weight_decay=args.wr[0]
+    )
+elif args.optim == 'adam':
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=args.lr[0],
+        weight_decay=args.wr[0]
+    )
 
 
-kern_weights, conv_weights = reg_weights(model, args.fc)
+fc_weights, kern_weights, conv_weights = reg_weights(model)
 
 time_t = AverageMeter('Time', ':6.2f')
 
@@ -139,7 +153,7 @@ for epoch in range(args.epochs):
         loss = criterion(output, target) 
 
         if args.reg != 'base':
-            loss += reg_losses.reg_loss(args, kern_weights, conv_weights, model)
+            loss += reg_losses.reg_loss(args, model, fc_weights, kern_weights, conv_weights)
 
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
         

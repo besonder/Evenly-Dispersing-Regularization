@@ -3,42 +3,39 @@ from torch.nn import functional as F
 import numpy as np
 
 
-def ADK_fc(weight, theta):
-    if len(weight) == 2:
-        weight = weight[0]
-    m = weight.shape[0]
-    W = weight.view(m, -1)    
-    n1, t1 = ad_function(W, theta)
-    n2, t2 = ad_function(torch.t(W), theta)
-
-    return  n1+n2, t1+t2
-
-
-def ADK(weight, theta):
-    if len(weight) == 2:
-        weight = weight[0]
-    m = weight.shape[0]
-    W = weight.view(m, -1)
-    return ad_function(W, theta)
-
-
-def ad_function(W, theta):
+def ad_function(W, theta, target_norm=1):
     m = W.shape[0]
     WWT = W @ torch.t(W)
     norm2 = torch.diagonal(WWT, 0)
-    N = torch.sqrt(norm2[:, None] @ norm2[None, :]).detach() + 1e-8
+    N = (torch.sqrt(norm2[:, None] @ norm2[None, :]).detach() + 1e-8)*1.001
     if theta == 1.5708:
-        M = 1 - torch.eye(m, dtype=float).cuda()
-        tloss = torch.sum(((torch.arccos(WWT*M) - theta)*M)**2)
+        M = torch.logical_not(torch.eye(m, dtype=bool)).cuda()
+        tloss = torch.sum(((torch.arccos(WWT[M]) - theta))**2)
     else:
-        Z = (1 - torch.eye(m, dtype=float)).type(torch.bool)
-        M1 = (WWT/N > np.cos(theta))*Z
-        M2 = (WWT/N < -np.cos(theta))*Z
+        WWTN = WWT/N
+        Z = torch.logical_not(torch.eye(m, dtype=bool)).cuda()
+        M1 = (WWTN > np.cos(theta))*Z
+        M2 = (WWTN < -np.cos(theta))*Z
         tloss = torch.sum(((torch.arccos(WWT[M1]) - theta))**2) + \
             torch.sum(((torch.arccos(WWT[M2]) - 3.1416 + theta))**2)
     
-    nloss = torch.sum((1 - norm2)**2)
+    nloss = torch.sum((target_norm**2 - norm2)**2)
     return nloss, tloss
+
+
+def ADK(weight, theta, double=False):
+    m = weight.shape[0]
+    W = weight.view(m, -1)
+    n = W.shape[1]
+
+    if double:
+        nloss, tloss = ad_function(W, theta, target_norm=1)
+        n2, t2 = ad_function(torch.t(W), theta, target_norm=m/n)
+        nloss += n2
+        tloss += t2       
+    else: 
+        nloss, tloss = ad_function(W, theta)
+    return nloss, tloss  
 
 
 def ADC(kernel, theta, stride):
@@ -68,6 +65,8 @@ def ADC(kernel, theta, stride):
         tloss = torch.sum((output3[M1] - theta)**2) + \
             torch.sum((output3[M2] - 3.1416 + theta)**2)
     return nloss, tloss
+
+
 
 
     

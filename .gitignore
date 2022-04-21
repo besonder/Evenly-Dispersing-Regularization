@@ -8,3 +8,5 @@ DATA/*
 
 log/*
 !log/.gitkeep
+
+.ipynb_checkpoints
