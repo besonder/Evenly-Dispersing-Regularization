@@ -69,7 +69,7 @@ def adjust_learning_rate(optimizer, epoch, args):
 
 
 
-def reg_weights(model):
+def reg_weights(model, args):
     first_conv = True
     fc_weights = []
     kern_weights = []
@@ -101,4 +101,39 @@ def do_seed(seed_num, cudnn_ok=True):
     if cudnn_ok:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+
+
+def angle_analysis(weight):
+    m = weight.shape[0]
+    if len(weight.shape) == 4:
+        weight = weight.view(m, -1)
+    WWT = weight @ torch.t(weight)
+    norm2 = torch.diagonal(WWT, 0)
+    N = (torch.sqrt(norm2[:, None] @ norm2[None, :]) + 1e-8)*1.001
+    WWTN = WWT/N
+
+    M = torch.logical_not(torch.eye(m))
+    sp = torch.sort(1 - torch.abs(WWTN[M].view(m, -1)), dim=1)
+    
+    theta = torch.arccos(torch.abs(WWTN[torch.arange(m), sp.indices[:, 0]]))
+    mean = torch.mean(theta)
+    Max = torch.amax(theta)
+    Min = torch.amin(theta)
+    meanNorm = torch.mean(torch.norm(weight, dim=1))
+    return mean, Min, Max, meanNorm
+
+
+def weights_angle_analysis(fc_weights, kern_weights, conv_weights, f, view=-1):
+    total_weights = fc_weights + kern_weights + [ws[0] for ws in conv_weights]
+    with torch.no_grad():
+        for i, W in enumerate(total_weights):
+            if view == -1 or i == view:
+                print_result = True
+            if print_result:
+                mean, Min, Max, meanNorm = angle_analysis(W)
+                print(f'weight {i}, shape: {W.shape}, mean: {mean:.3f}, Min: {Min:.3f}, Max: {Max:.3f}, Norm: {meanNorm:.3f}')
+                f.write(f'weight {i}, shape: {W.shape}, mean: {mean:.3f}, Min: {Min:.3f}, Max: {Max:.3f}, Norm: {meanNorm:.3f}\n')
+                print_result = False
+
+
 

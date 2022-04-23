@@ -1,4 +1,4 @@
-Model: resnet18
+Model: resnet34
 Dataset: cifar100
 Regularizer:
   name: SO

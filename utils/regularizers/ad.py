@@ -7,17 +7,18 @@ def ad_function(W, theta, target_norm=1):
     m = W.shape[0]
     WWT = W @ torch.t(W)
     norm2 = torch.diagonal(WWT, 0)
-    N = (torch.sqrt(norm2[:, None] @ norm2[None, :]).detach() + 1e-8)*1.001
+    with torch.no_grad():
+        N = (torch.sqrt(norm2[:, None] @ norm2[None, :]).detach() + 1e-8)*1.001
+    WWTN = WWT/N
     if theta == 1.5708:
         M = torch.logical_not(torch.eye(m, dtype=bool)).cuda()
-        tloss = torch.sum(((torch.arccos(WWT[M]) - theta))**2)
+        tloss = torch.sum((torch.arccos(WWTN[M]) - theta)**2)
     else:
-        WWTN = WWT/N
         Z = torch.logical_not(torch.eye(m, dtype=bool)).cuda()
         M1 = (WWTN > np.cos(theta))*Z
         M2 = (WWTN < -np.cos(theta))*Z
-        tloss = torch.sum(((torch.arccos(WWT[M1]) - theta))**2) + \
-            torch.sum(((torch.arccos(WWT[M2]) - 3.1416 + theta))**2)
+        tloss = torch.sum(((torch.arccos(WWTN[M1]) - theta))**2) + \
+            torch.sum((torch.arccos(WWTN[M2]) - 3.1416 + theta)**2)
     
     nloss = torch.sum((target_norm**2 - norm2)**2)
     return nloss, tloss
@@ -34,7 +35,7 @@ def ADK(weight, theta, double=False):
         nloss += n2
         tloss += t2       
     else: 
-        nloss, tloss = ad_function(W, theta)
+        nloss, tloss = ad_function(W, theta, target_norm=1)
     return nloss, tloss  
 
 

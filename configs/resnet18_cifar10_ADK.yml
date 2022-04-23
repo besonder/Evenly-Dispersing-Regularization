@@ -1,7 +1,7 @@
 Model: resnet18
-Dataset: cifar100
+Dataset: cifar10
 Regularizer:
-  name: SO
+  name: ADK
   optimizer: sgd
   log: './log/performance2/'
   seed: 1000
@@ -12,10 +12,10 @@ Regularizer:
     lr_MS: [60, 110, 150, 180]
     lr: [1e-1, 2e-2, 4e-3, 8e-4, 2e-4] # learning ratio
     reg_MS: [20, 50, 70, 120]
-    rr: [1e-1, 1e-3, 1e-4, 1e-6, 0] # regularization ratio to be multiplied by lr
-    wr: [1e-8, 1e-4, 1e-4, 1e-4, 1e-4] # weight decay
+    rr: [2e-1, 1e-3, 1e-4, 1e-6, 0] # regularization ratio to be multiplied by lr
+    wr: [1e-8, 5e-4, 5e-4, 5e-4, 5e-4] # weight decay
 Train:
-  rtn: 1e-1 # thetaloss (over normloss) ratio to be multiplied by lr and rr
+  rtn: 1e-1 # thetaloss (over normloss, only for ADK, AKC) ratio to be multiplied by lr and rr
   double: false
   theta: 1.5708
   epochs: 200

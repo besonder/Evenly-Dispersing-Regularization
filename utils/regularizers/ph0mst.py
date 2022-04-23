@@ -4,6 +4,8 @@ import gudhi as gd
 from scipy.sparse.csgraph import minimum_spanning_tree
 
 def PH0(weight, mel=1000):
+    if len(weight) == 2:
+        weight = weight[0]
     m = weight.shape[0]
     W = weight.view(m, -1)
     rips = gd.RipsComplex(W, max_edge_length=mel)
@@ -23,6 +25,8 @@ def PH0(weight, mel=1000):
 
 
 def MST(weight):
+    if len(weight) == 2:
+        weight = weight[0]
     m = weight.shape[0]
     W = weight.view(m, -1)
     dist = torch.sqrt(torch.sum(torch.pow(W[:, None, :] - W[None, :, :], 2), dim=2))

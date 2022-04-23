@@ -1,5 +1,5 @@
-Model: resnet18
-Dataset: cifar100
+Model: resnet34
+Dataset: cifar10
 Regularizer:
   name: SO
   optimizer: sgd

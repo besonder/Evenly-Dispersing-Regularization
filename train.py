@@ -10,17 +10,18 @@ import torch.nn as nn
 # import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
 from utils import datasets, reg_losses
-from utils.utils import AverageMeter, adjust_learning_rate, accuracy, reg_weights, do_seed
+from utils.utils import AverageMeter, adjust_learning_rate, accuracy, reg_weights, do_seed, weights_angle_analysis
 from utils.config import load_config
 # from utils.milestone import milestones
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_config', '-e', type=str,
-                    default='configs/resnet18_cifar100_SO.yml')
+                    default='configs/resnet18_cifar10_SRIP.yml')
 parser.add_argument('--gpu', type=str, default='0')
 parser.add_argument('--num_worker', type=int, default=4)
 parser.add_argument('--local_rank', type=int, default=0)
+parser.add_argument('--angle_view', '-av', type=int, default=None)
 
 args = parser.parse_args()
 
@@ -113,7 +114,7 @@ elif args.optimizer == 'adam':
     )
 
 
-fc_weights, kern_weights, conv_weights = reg_weights(model)
+fc_weights, kern_weights, conv_weights = reg_weights(model, args)
 
 time_t = AverageMeter('Time', ':6.2f')
 
@@ -148,6 +149,9 @@ for epoch in range(args.epochs):
         optimizer.step()
 
     time_t.update(time()-stime)
+
+    if args.angle_view is not None:
+        weights_angle_analysis(fc_weights, kern_weights, conv_weights, f, args.angle_view)
 
     ####### validataion #######
 

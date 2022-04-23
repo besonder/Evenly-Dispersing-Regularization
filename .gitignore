@@ -12,3 +12,5 @@ log/*
 .ipynb_checkpoints
 
 utils/milestone.py
+
+*.sh

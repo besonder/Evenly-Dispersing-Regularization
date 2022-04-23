@@ -26,10 +26,10 @@ def load_config(args):
 
     cfg_train = cfg['Train']
     args_dict['rtn'] = float(cfg_train['rtn'])
+    args_dict['double'] = cfg_train['double']
     args_dict['theta'] = cfg_train['theta']
     args_dict['epochs'] = cfg_train['epochs']
     args_dict['bsize'] = cfg_train['batchsize']
-    args_dict['warm'] = cfg_train['warmup']
 
     for key in args_dict:
         setattr(args, key, args_dict[key])
