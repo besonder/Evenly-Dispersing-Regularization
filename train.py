@@ -1,7 +1,9 @@
 import os
 import sys
+import copy
 from time import time
 import argparse
+import numpy as np
 from datetime import datetime
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
@@ -9,7 +11,7 @@ import torch
 import torch.nn as nn
 # import torchvision.transforms as transforms
 from torch.utils.data.distributed import DistributedSampler
-from utils import datasets, reg_losses
+from utils import models_datasets, reg_losses
 from utils.utils import AverageMeter, adjust_learning_rate, accuracy, reg_weights, do_seed, weights_angle_analysis
 from utils.config import load_config
 # from utils.milestone import milestones
@@ -18,7 +20,7 @@ from utils.config import load_config
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_config', '-e', type=str,
                     default='configs/resnet18_cifar10_SRIP.yml')
-parser.add_argument('--gpu', type=str, default='0')
+parser.add_argument('--gpu', type=str, default='1')
 parser.add_argument('--num_worker', type=int, default=4)
 parser.add_argument('--local_rank', type=int, default=0)
 parser.add_argument('--angle_view', '-av', type=int, default=None)
@@ -52,7 +54,7 @@ if args.distributed:
 
 do_seed(args.seed)
 
-model, train_dataset, val_dataset = datasets.model_data(args)
+model, train_dataset, val_dataset = models_datasets.model_data(args)
 
 model.cuda()
 
@@ -118,6 +120,8 @@ fc_weights, kern_weights, conv_weights = reg_weights(model, args)
 
 time_t = AverageMeter('Time', ':6.2f')
 
+save_weights = []
+
 for epoch in range(args.epochs):
 
     adjust_learning_rate(optimizer, epoch, args)
@@ -175,6 +179,46 @@ for epoch in range(args.epochs):
         print(f'epoch: {epoch}, tr_time: {time_t.val:.1f}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}')
         f.write(
             f'epoch: {epoch}, tr_time: {time_t.val:.1f}, validation loss: {losses.avg:.3f}, acc1: {top1.avg:.3f}, acc5: {top5.avg:.3f}\n')
+    
+
+    result = f'epoch_{epoch}_top1_{top1.avg:.3f}'
+
+    
+    weight_name = '_'.join([args.model, args.data, args.reg])
+    weight_name += now.strftime("_%Y-%m-%d_%H-%M-%S")
+    weight_name += '_' + result
+    path = weight_name + '.pt'
+    path = os.path.join('model_weights', path)
+
+    saveW = False
+
+    if len(save_weights) < 1:
+        save_weights.append(weight_name)
+        saveW = True
+    else:
+        saveW = False
+        for i, et in enumerate(save_weights):
+            if float(et.split('_')[-1]) < top1.avg:
+                remove_file = copy.deepcopy(save_weights[i])
+                save_weights[i] = weight_name
+                saveW= True
+                os.remove(os.path.join('model_weights', remove_file+'.pt'))
+                break
+
+    if len(save_weights) > 1:
+        top5model_loss = np.array([float(et.split('_')[-1]) for et in save_weights])
+        sort_idx = np.argsort(top5model_loss)
+        save_weights = [save_weights[i] for i in sort_idx]
+
+
+    if saveW:
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'loss': losses.avg,
+            'top1': top1.avg,
+        }, path)
+
 
 if not args.distributed or args.local_rank == 0:
     f.close()

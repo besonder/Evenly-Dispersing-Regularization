@@ -33,7 +33,7 @@ def MST(weight):
     Tscr = minimum_spanning_tree(dist.detach().cpu().numpy())
     result = Tscr.toarray()
     mst = np.where(result > 0)
-    tloss = torch.sqrt(((W[mst[0]] - W[mst[1]])**2).sum(-1)).sum()
+    tloss = -torch.sqrt(((W[mst[0]] - W[mst[1]])**2).sum(-1)).sum()
 
     norm = torch.norm(W, dim=1)
     nloss = torch.sum((1 - norm**2)**2)

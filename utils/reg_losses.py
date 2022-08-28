@@ -10,26 +10,26 @@ def reg_loss(args, model, fc_weights, kern_weights, conv_weights):
     elif args.reg == 'SO':
         sloss = 0
 
-        if not args.fc:
+        if args.fc:
             for i in range(len(fc_weights)):
                 sloss += sodso.SO(fc_weights[i])
-        if not args.kern:
+        if args.kern:
             for i in range(len(kern_weights)):
                 sloss += sodso.SO(kern_weights[i])
-        if not args.conv:
+        if args.conv:
             for i in range(len(conv_weights)):
                 sloss += sodso.SO(conv_weights[i])
         rloss = args.r*sloss
 
     elif args.reg == 'DSO':
         sloss = 0
-        if not args.fc:
+        if args.fc:
             for i in range(len(fc_weights)):
                 sloss += sodso.DSO(fc_weights[i])
-        if not args.kern:
+        if args.kern:
             for i in range(len(kern_weights)):
                 sloss += sodso.DSO(kern_weights[i])
-        if not args.conv:
+        if args.conv:
             for i in range(len(conv_weights)):
                 sloss += sodso.DSO(conv_weights[i])
         rloss = args.r*sloss        

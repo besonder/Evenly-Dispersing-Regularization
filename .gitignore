@@ -14,3 +14,9 @@ log/*
 utils/milestone.py
 
 *.sh
+
+models/wide_resnet_old.py
+
+*.gif
+
+model_weights/*
