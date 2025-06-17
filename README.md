@@ -34,9 +34,16 @@ This project introduces **dispersing-based regularizations** using geometric and
 ## Algorithms
 
 <p align="center">
-  <img src="images/s2_vector_dispersal.png" width="480"/>
+  <img src="images/mst_algorithm.png" width="480"/>
 </p>
 
+<p align="center">
+  <img src="images/eadk_algorithm.png" width="480"/>
+</p>
+
+<p align="center">
+  <img src="images/eadc_algorithm.png" width="480"/>
+</p>
 ---
 
 ## 📈 Benchmark Results
@@ -46,10 +53,6 @@ This project introduces **dispersing-based regularizations** using geometric and
 | CIFAR-10   | 94.57%   | **95.20%**  | **95.35%**  |
 | CIFAR-100  | 74.84%   | **77.79%**  | **78.78%**  |
 | SVHN       | 96.86%   | **97.02%**  | **97.02%**  |
-
-<p align="center">
-  <img src="images/angle_analysis.png" width="460"/>
-</p>
 
 ---
 
