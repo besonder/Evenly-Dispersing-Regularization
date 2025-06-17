@@ -45,7 +45,8 @@ This project introduces **dispersing-based regularizations** using geometric and
   <img src="images/eadc_algorithm.png" width="480"/>
 </p>
 
-## 📈 Benchmark Results
+---
+## Benchmark Results
 
 | Dataset    | Baseline | EADK (Best) | EADC (Best) |
 |------------|----------|-------------|-------------|
@@ -53,4 +54,3 @@ This project introduces **dispersing-based regularizations** using geometric and
 | CIFAR-100  | 74.84%   | **77.79%**  | **78.78%**  |
 | SVHN       | 96.86%   | **97.02%**  | **97.02%**  |
 
----
