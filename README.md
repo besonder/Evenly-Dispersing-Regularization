@@ -44,7 +44,6 @@ This project introduces **dispersing-based regularizations** using geometric and
 <p align="center">
   <img src="images/eadc_algorithm.png" width="480"/>
 </p>
----
 
 ## 📈 Benchmark Results
 
