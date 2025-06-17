@@ -54,10 +54,3 @@ This project introduces **dispersing-based regularizations** using geometric and
 | SVHN       | 96.86%   | **97.02%**  | **97.02%**  |
 
 ---
-
-## Quick Start
-
-### 🔧 Installation
-
-```bash
-pip install -r requirements.txt
